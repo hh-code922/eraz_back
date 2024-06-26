@@ -1,0 +1,21 @@
+{
+  "count_of_mines": "Count of Mines",
+  "stake": "Stake",
+  "place_a_bet": "Place a Bet",
+  "cash_out": "Cash out",
+  "sound": "Sound",
+  "voice": "Voice",
+  "info": "Game Board: The game board consists of a grid of squares. Each square can either contain a diamond or a mine.",
+  "place_bet_to_start": "Place Bet To Start",
+  "no_internet": "No Internet Connection",
+  "check_connection": "Please check your connection",
+  "reload": "Reload",
+  "cancel": "Cancel",
+  "increase": "Increase",
+  "ok": "Ok",
+  "insufficient_balance": "Insufficient balance",
+  "increase_balance": "You can increase your balance",
+  "bet_limit": "Bet Limit",
+  "min_bet_info": "Minimum bet starts from",
+  "max_bet_info": "Maximum bet is"
+}
