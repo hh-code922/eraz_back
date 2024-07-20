@@ -33,6 +33,7 @@ let isUsrStoped = false;
 let isAllowAutoBet = false;
 
 const players = [];
+const usersId = {};
 let count = [];
 const balance = [];
 const bet = [];
@@ -42,6 +43,16 @@ const userGameState = [];
 
 const valid = [];
 
+function sendUpdatesToPlayers() {
+    for (const socketId in usersId) {
+        const playerData = {
+            data: socketId
+        };
+
+        // Sending updates to a specific player
+        socketIO.to(socketId).emit('gameUpdate', playerData);
+    }
+}
 
 function validateEventOrder(socket, next) {
     const eventName = socket.currentEvent && socket.currentEvent.name;
@@ -73,21 +84,12 @@ function startTimer() {
     isAllowAutoBet = false;
 
     console.log('Is ready to bet', isBetPanding);
-/*
-    if (players[currentPlayer].isPlayerReady) {
-        if (!isCarMoving && isBetAllow) {
-            bet[currentPlayer] = players[currentPlayer].betAmount;
-            balance[currentPlayer] -= bet[currentPlayer];
-    
-            if (!balance[gameId]) valid[gameId] = 1;
-        }
-
-        socketIO.emit('test', 'stacvec');
-    } */
 
     timerInterval = setInterval(() => {
         if (isCarMoving) {
             let result = ++counter;
+
+            console.log("ALLL USERSSSSSSSSSSSS", usersId);
 
             socketIO.emit('isBetPanding', isBetPanding);
 
@@ -116,7 +118,6 @@ function startTimer() {
         counter = 0;
 
         isCarMoving = false;
-        // isBetAllow = false;
         isExplotion = true;
         isAllowAutoBet = true;
         
@@ -126,7 +127,7 @@ function startTimer() {
             isActiveAutoBet: isActiveAutoBet[currentPlayer]
         });
 
-        console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$', isActiveAutoBet);
+        sendUpdatesToPlayers();
 
         if (!isBetPanding) {
             finishGame();
@@ -138,7 +139,28 @@ function startTimer() {
 
 // Function to restart the timer after 3 seconds
 function restartTimer() {
-    setTimeout(() => {
+    let backCount = 3;
+
+    let interval = setInterval(() => {
+        if (backCount >= 0) {
+           socketIO.emit('backCount', backCount);
+    
+            backCount--;
+        } else {
+            clearInterval(interval);
+
+            isBetAllow = true;
+
+            socketIO.emit('isBetAllow', isBetAllow);
+
+            console.log('Timer restarted');
+
+            startTimer();
+
+            backCount = 3;
+        }
+    }, 1000);
+     /* setTimeout(() => {
         isBetAllow = true;
         
         socketIO.emit('isBetAllow', isBetAllow);
@@ -146,7 +168,7 @@ function restartTimer() {
         console.log('Timer restarted');
         
         startTimer();
-    }, 3000);
+    }, 3000); */
 }
 
 function activeStake() {
@@ -242,7 +264,6 @@ function cleanData(gameId) {
 
     // currentPlayer = null;
 
-
     delete players[gameId];
     // delete mineIndexes[gameId];
     delete count[gameId];
@@ -253,10 +274,12 @@ function cleanData(gameId) {
     // socketValidationOrder.delete(gameId);
 }
 
-
 socketIO.on('connection', (socket) => {
     console.log(`${socket.id} user connected`);
     const gameId = socket.id;
+
+    // Test Part
+    usersId[socket.id] = socket.id;
     
     currentPlayer = gameId;
 
@@ -279,37 +302,39 @@ socketIO.on('connection', (socket) => {
 
         currentPlayer = gameId;
 
-        balance[gameId] = 100000;
+        balance[usersId[socket.id]] = 100000;
 
-        isActiveAutoBet[gameId] = data.isActiveAutoBet;
+        isActiveAutoBet[usersId[socket.id]] = data.isActiveAutoBet;
 
         const players = [];
 
-        players[gameId] = {
+        players[usersId[socket.id]] = {
             gameInfo: {
                 hash: null,
                 stake: null,
             },
             partnerInfo,
             token: data.token,
-            balance: balance[gameId],
+            balance: balance[usersId[socket.id]],
             validation: 0,
             partnerInstanceName: "TotoGaming",
             playerId: 0,
             langText,
-            isActiveAutoBet: isActiveAutoBet[gameId]
+            isActiveAutoBet: isActiveAutoBet[usersId[socket.id]]
         }
-        socket.emit("getInitialState", players[gameId]);
+
+        socket.emit("getInitialState", players[usersId[socket.id]]);
        // console.log("Received: ", JSON.stringify(players[gameId]));
 
     });
 
     socket.on('isActiveAutoBet', (data) => {
-        isActiveAutoBet[gameId] = data;
+        isActiveAutoBet[usersId[socket.id]] = data;
     });
     
     // Send the current counter value to the newly connected client
-    socket.emit('updateCounter', counter);
+    // Do not delete yet
+    // socket.emit('updateCounter', counter);
 
     socket.on("startGame", data => {
        // console.log(data);
@@ -318,10 +343,10 @@ socketIO.on('connection', (socket) => {
         const isDemo = data.isDemo;
         const betAmount = data.amount;
 
-        autoCashoutState[gameId] = data.autoCashoutState;
+        autoCashoutState[usersId[socket.id]] = data.autoCashoutState;
 
         if (data.autoBetTabe) {
-            isActiveAutoBet[gameId] = true;
+            isActiveAutoBet[usersId[socket.id]] = true;
         }
 
         isBetPanding = true;
@@ -329,22 +354,22 @@ socketIO.on('connection', (socket) => {
         // data.playerId;
         const players = [];
 
-        players[gameId] = {
+        players[usersId[socket.id]] = {
             validation: 0,
             hash: crypto.createHash('sha256').update(token + isDemo).digest('hex'),
             betAmount,
             isPlayerReady: true,
-            balance: balance[gameId] - betAmount,
-            autoCashout: autoCashoutState[gameId],
+            balance: balance[usersId[socket.id]] - betAmount,
+            autoCashout: autoCashoutState[usersId[socket.id]],
             isFinishedGame: false,
             isUsrStoped: false,
-            isActiveAutoBet: isActiveAutoBet[gameId]
+            isActiveAutoBet: isActiveAutoBet[usersId[socket.id]]
         };
 
         function toActiveBet (data) {
             if (data) {
                 if (isCancleBet) {
-                    console.log('isCanclleBet: ', isCancleBet);
+                    console.log('You have cancaled bet ', isCancleBet);
 
                     socket.off('makeBet', toActiveBet);
 
@@ -353,26 +378,24 @@ socketIO.on('connection', (socket) => {
                     return;
                 }
 
-                balance[gameId] -= players[gameId].betAmount;
+                balance[usersId[socket.id]] -= players[usersId[socket.id]].betAmount;
     
-                bet[gameId] = betAmount;
+                bet[usersId[socket.id]] = betAmount;
     
-                console.log(`Balance is: ${balance[gameId]}, your Bet is ${bet[gameId]}`);
+                console.log(`Now Your Balance is: ${balance[usersId[socket.id]]}, and your Bet is ${bet[usersId[socket.id]]}`);
 
                 socket.off('makeBet', toActiveBet);
             }
         }
 
         if (isBetPanding) {
-            console.log('Es mta stex', isBetPanding);
-            
+            // It will work when panding state is true
             socketIO.emit('isBetPanding', isBetPanding);
             
             socket.on('makeBet', toActiveBet);
         }
         
         socket.emit("startGame", players[gameId]);
-        //console.log('startGame players: ', JSON.stringify(players[gameId]));
     });
 
    // socket.emit('cancleBet', {balance: balance[gameId], isGameStarted: false});
@@ -382,7 +405,7 @@ socketIO.on('connection', (socket) => {
     
     socket.on("cashOut", data => {
         if (isBetPanding) {
-            socket.emit('cancleBet', {balance: balance[gameId], isGameStarted: false, isFinishedGame: true, isUsrStoped: true, isActiveAutoBet: false});
+            socket.emit('cancleBet', {balance: balance[usersId[socket.id]], isGameStarted: false, isFinishedGame: true, isUsrStoped: true, isActiveAutoBet: false});
 
             return;
         }
@@ -391,13 +414,13 @@ socketIO.on('connection', (socket) => {
         // const token = data.token;
         const currentCoefficient = counter;
 
-        const win = parseInt(Math.round(bet[gameId] * currentCoefficient).toFixed(2));
-        balance[gameId] += win;
+        const win = parseInt(Math.round(bet[usersId[socket.id]] * currentCoefficient).toFixed(2));
+        balance[usersId[socket.id]] += win;
         /*if (!balance[gameId]) valid[gameId] = 1;*/
-        valid[gameId] = 0;
+        valid[usersId[socket.id]] = 0;
        // console.log('win',typeof balance[gameId], balance[gameId])
 
-       console.log(`Win is: ${win}, Balance is: ${balance[gameId]}`);
+       console.log(`Win is: ${win}, Balance is: ${balance[usersId[socket.id]]}`);
        
         const players = [];
 
@@ -405,27 +428,28 @@ socketIO.on('connection', (socket) => {
             stake: {
                 win,
                 stakeId: 1,
-                bet: bet[gameId],
+                bet: bet[usersId[socket.id]],
             },
             gameId,
             currentCoefficient: currentCoefficient,
-            balance: balance[gameId],
-            validation: valid[gameId],
+            balance: balance[usersId[socket.id]],
+            validation: valid[usersId[socket.id]],
             isFinishedGame: true,
             isUsrStoped: false
         }; 
 
         
-        socket.emit("finishGame", players[gameId]);
+        socket.emit("finishGame", players[usersId[socket.id]]);
 
-        cleanData(gameId);
+        cleanData(usersId[socket.id]);
 
-        console.log("cashout: ", JSON.stringify(players[gameId]));
+        console.log("cashout: ", JSON.stringify(players[usersId[socket.id]]));
     });
-
 
     socket.on('disconnect', () => {
         console.log(`${socket.id} user disconnected`);
+
+        delete usersId[socket.id];
     });
 });  
 
