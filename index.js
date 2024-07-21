@@ -92,7 +92,7 @@ function startTimer() {
             console.log("ALLL USERSSSSSSSSSSSS", usersId);
 
             socketIO.emit('isBetPanding', isBetPanding);
-
+            socketIO.emit('usersData', usersId);    
             console.log('isBetPanding', isBetPanding);
             
             socketIO.emit('carMoving', {
@@ -402,6 +402,8 @@ socketIO.on('connection', (socket) => {
    socket.on('cancleBet', (data) => {
         isCancleBet = data;
    });
+
+   socketIO.emit('usersData', usersId);
     
     socket.on("cashOut", data => {
         if (isBetPanding) {
@@ -450,6 +452,7 @@ socketIO.on('connection', (socket) => {
         console.log(`${socket.id} user disconnected`);
 
         delete usersId[socket.id];
+        socketIO.emit('usersData', usersId); 
     });
 });  
 
