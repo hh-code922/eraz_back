@@ -402,8 +402,6 @@ socketIO.on('connection', (socket) => {
    socket.on('cancleBet', (data) => {
         isCancleBet = data;
    });
-
-   socketIO.emit('usersData', usersId);
     
     socket.on("cashOut", data => {
         if (isBetPanding) {
