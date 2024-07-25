@@ -83,9 +83,10 @@ function finishedGameData() {
             playerdId: socketID
         }
 
-        sockewtTo(socketID, 'finishGame',  finishedData[socketID]);
-
-        cleanData(UsersList[socketID]);
+        if (!UsersList[socketID].isBetPanding) {
+            sockewtTo(socketID, 'finishGame',  finishedData[socketID]);
+            cleanData(UsersList[socketID]);
+        }
     }
 }
 
@@ -179,15 +180,7 @@ function startTimer() {
             finishedGameData();
         }*/
 
-        let x = Object.values(UsersList).some(users => {
-            users.isBetPanding === true;
-        });
-        console.log('xxxxxxxxxxxxxxxxxxxxxxxx', x);
-
-        if (x) {
-            console.log('XUJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAN');
             finishedGameData();
-        }
 
         restartTimer();
     }, randomStopTime * 1000);
