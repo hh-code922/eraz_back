@@ -29,7 +29,6 @@ let currentPlayer = null;
 let isBetAllow = false;
 let isBetPanding = false;
 let isCancleBet = false;
-let isUsrStoped = false;
 let isAllowAutoBet = false;
 
 const players = [];
@@ -37,10 +36,6 @@ const UsersList = {};
 let count = [];
 const balance = [];
 const bet = [];
-const autoCashoutState = [];
-const isActiveAutoBet = [];
-const userGameState = [];
-
 const valid = [];
 
 function sockewtTo(socketID, emitName, data) {
@@ -108,7 +103,7 @@ function validateEventOrder(socket, next) {
 function startTimer() {
     let randomTime = Math.random() * 6 + 5;
     console.log('randomStopTime is: ', randomTime);
-    const randomStopTime = Math.floor(randomTime + 2); // Random time between 5 to 10 seconds
+    const randomStopTime = Math.floor(randomTime + 2);
     console.log('Timer will stop after', randomStopTime - 2, 'seconds');
 
     startTime = Date.now();
@@ -145,7 +140,7 @@ function startTimer() {
                 isExplotion
             });
 
-            socketIO.emit('updateCounter', result); // Broadcast current value to all connected clients
+            socketIO.emit('updateCounter', result);
         } else {
             clearInterval(timerInterval);
         }
@@ -153,10 +148,6 @@ function startTimer() {
 
     // Stop the timer after randomStopTime seconds
     setTimeout(() => {
-        // const elapsedTime = Date.now() - startTime;
-        // const remainingTime = randomStopTime * 1000 - elapsedTime;
-
-        console.log('Timer stopped');
 
         clearInterval(timerInterval);
 
@@ -188,25 +179,21 @@ function startTimer() {
 
 // Function to restart the timer after 3 seconds
 function restartTimer() {
-    let backCount = 3;
+    let backCount = 5;
 
     let interval = setInterval(() => {
         if (backCount >= 0) {
-           socketIO.emit('backCount', backCount);
+           socketIO.emit('backCount', {backCount, status: true});
     
             backCount--;
         } else {
             clearInterval(interval);
-
             isBetAllow = true;
-
             socketIO.emit('isBetAllow', isBetAllow);
-
-            console.log('Timer restarted');
-
+            socketIO.emit('updateCounter', 0);
+            socketIO.emit('backCount', {backCount, status: false});
             startTimer();
-
-            backCount = 3;
+            backCount = 5;
         }
     }, 1000);
      /* setTimeout(() => {
@@ -222,13 +209,8 @@ function restartTimer() {
 
 function activeStake() {
     socketIO.on("addStake", data => {
-        const partnerId = data.partnerId;
-        const isDemo = data.isDemo;
          
         bet[currentPlayer] = data.bet;
-        // const token = data.token;
-        const betType = data.betType;
-
         balance[currentPlayer] -= bet[currentPlayer];
 
         if (!balance[currentPlayer]) valid[currentPlayer] = 1;
@@ -281,7 +263,6 @@ function activeStake() {
     })
 }
 
-// Start the timer initially
 startTimer();
 
 function finishGame() {
@@ -311,44 +292,26 @@ function finishGame() {
 function cleanData(gameId) {
     console.log('GAMEID IS:   ', gameId);
 
-    // currentPlayer = null;
-
     delete players[gameId];
-    // delete mineIndexes[gameId];
     delete count[gameId];
-    // delete minesCount[gameId];
-    // delete boxNumber[gameId];
     delete bet[gameId];
     delete valid[gameId];
     delete[UsersList[gameId]];
-    // socketValidationOrder.delete(gameId);
 }
 
 socketIO.on('connection', (socket) => {
     console.log(`${socket.id} user connected`);
     const gameId = socket.id;
 
-    // Test Part
     UsersList[gameId] = {gameID: socket.id};
     
     currentPlayer = gameId;
 
-    // startTimer();
-    // My custom pasted cod
     socket.currentEvent = null;
 
-    /*socket.use((packet, next) => {
-        console.log('Hesaaaaaaaaaaaaaaaaaaaaaa eti', packet);
-        const [eventName] = packet;
-        socket.currentEvent = {name: eventName};
-        validateEventOrder(socket, next);
-    });*/
-
     socket.on('getInitialState', data => {
-       // console.log('data', data);
         socketIO.emit('usersData', UsersList);    
         const langText = getLangText(data, partnerInfo);
-        // mineIndexes[gameId] = generateGame(defaultMiensCount);
 
         currentPlayer = gameId;
 
@@ -374,8 +337,6 @@ socketIO.on('connection', (socket) => {
         }
 
         socket.emit("getInitialState", players[UsersList[gameId]]);
-       // console.log("Received: ", JSON.stringify(players[gameId]));
-
     });
 
     socket.on('isActiveAutoBet', (data) => {
@@ -387,8 +348,6 @@ socketIO.on('connection', (socket) => {
     // socket.emit('updateCounter', counter);
 
     socket.on("startGame", data => {
-       // console.log(data);
-        // const partnerId = data.partnerId;
         const token = data.token;
         const isDemo = data.isDemo;
         const betAmount = data.amount;
@@ -433,8 +392,6 @@ socketIO.on('connection', (socket) => {
                 UsersList[gameId].balance -= players[UsersList[gameId]].betAmount;
     
                 UsersList[gameId].bet = betAmount;
-
-                console.log('Vaaay Bozzz @lnem es incha', UsersList[gameId].isBetPanding);
     
                 console.log(`Now Your Balance is: ${UsersList[gameId].balance}, and your Bet is ${UsersList[gameId].bet}`);
 
@@ -458,7 +415,6 @@ socketIO.on('connection', (socket) => {
         socket.emit("startGame", players[UsersList[gameId]]);
     });
 
-   // socket.emit('cancleBet', {balance: balance[gameId], isGameStarted: false});
    socket.on('cancleBet', (data) => {
         UsersList[gameId].isCancleBet = data;
 
@@ -478,17 +434,12 @@ socketIO.on('connection', (socket) => {
             return;
         }    
 
-        // const stakeId = data.stakeId;
-        // const token = data.token;
         const currentCoefficient = counter;
 
         const win = parseInt(Math.round(UsersList[gameId].bet * currentCoefficient).toFixed(2));
         UsersList[gameId].balance += win;
 
-        /*if (!balance[gameId]) valid[gameId] = 1;*/
-
         UsersList[gameId].valid = 0;
-       // console.log('win',typeof balance[gameId], balance[gameId])
 
        console.log(`Win is: ${win}, Balance is: ${UsersList[gameId].balance}`);
        
